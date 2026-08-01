@@ -1,0 +1,27 @@
+[package]
+name = "hui-agent-desktop"
+version = "0.1.0"
+description = "HuiAgent Desktop shell"
+authors = ["HuiAgent"]
+edition = "2021"
+
+[lib]
+name = "hui_agent_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+tokio = { version = "1", features = ["time"] }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+strip = true

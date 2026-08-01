@@ -1,0 +1,15 @@
+{
+  "identifier": "default",
+  "description": "Default capability for HuiAgent desktop",
+  "windows": ["settings", "companion"],
+    "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "core:tray:default",
+    "shell:default"
+  ]
+}

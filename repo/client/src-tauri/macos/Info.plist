@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>HuiAgent 需要麦克风权限以进行语音通话与语音识别。</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>HuiAgent 需要语音识别权限以在通话中听懂您说的话。</string>
+</dict>
+</plist>

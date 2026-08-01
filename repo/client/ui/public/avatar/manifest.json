@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "width": 1800,
+  "height": 2435,
+  "sequences": {
+    "idle": {
+      "dir": "/avatar/seq-webp/idle",
+      "pattern": "frame_%04d.webp",
+      "count": 60,
+      "fps": 60,
+      "width": 1800,
+      "height": 2435
+    },
+    "listening": {
+      "dir": "/avatar/seq-webp/listening",
+      "pattern": "frame_%04d.webp",
+      "count": 18,
+      "fps": 6,
+      "width": 1800,
+      "height": 2435
+    },
+    "speaking": {
+      "dir": "/avatar/seq-webp/speaking",
+      "pattern": "frame_%04d.webp",
+      "count": 182,
+      "fps": 60,
+      "width": 1800,
+      "height": 2435
+    },
+    "greetings": {
+      "dir": "/avatar/seq-webp/greetings",
+      "pattern": "frame_%04d.webp",
+      "count": 207,
+      "fps": 60,
+      "width": 1800,
+      "height": 2435
+    }
+  },
+  "modeMap": {
+    "resting": "idle",
+    "conversation": "idle",
+    "waiting": "idle",
+    "executing": "idle",
+    "completed": "idle",
+    "listening": "listening",
+    "speaking": "speaking"
+  }
+}

@@ -1,0 +1,31 @@
+# Dependencies & build
+**/node_modules/
+**/.venv/
+**/venv/
+**/dist/
+**/target/
+**/*.egg-info/
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+**/tsconfig.tsbuildinfo
+
+# Local config & runtime
+**/.env
+**/.env.*
+!**/.env.example
+
+# Large generated assets (download via scripts)
+repo/client/ui/public/avatar/seq/
+repo/client/ui/public/avatar/seq-webp/
+repo/client/ui/public/vrm/*.vrm
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+.cursor/

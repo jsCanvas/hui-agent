@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="HuiAgent — 桌面 AI 伴侣：Companion 浮层、MCP 读屏键鼠、Cursor Socket Relay 双工语音" />
+  <title>HuiAgent — 看得见、说得清、做得动</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="#">Hui<span>Agent</span></a>
+      <nav class="nav">
+        <a href="#demo">演示</a>
+        <a href="#guide">使用指导</a>
+        <a href="#architecture">架构</a>
+        <a href="https://github.com/jsCanvas/hui-agent" target="_blank" rel="noopener">GitHub</a>
+        <a href="../paper/PAPER.md">论文</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Desktop AI Companion · MCP · Cursor Relay</p>
+          <h1>桌面上的 AI 伴侣<br /><span class="gradient">看得见 · 说得清 · 做得动</span></h1>
+          <p class="lead">
+            HuiAgent 将 Companion 浮层、本地 Daemon 与 Cursor MCP 连成闭环：
+            语音或文字下发任务，AI 读屏滚页、键鼠操作、中文播报，全程在本机完成。
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="https://github.com/jsCanvas/hui-agent" target="_blank" rel="noopener">查看源码</a>
+            <a class="btn btn-ghost" href="#guide">5 分钟上手</a>
+          </div>
+          <ul class="hero-stats">
+            <li><strong>22+</strong><span>MCP 工具</span></li>
+            <li><strong>双工</strong><span>边缘即时 + Cursor 规划</span></li>
+            <li><strong>12h</strong><span>Socket 长监听</span></li>
+          </ul>
+        </div>
+        <div class="hero-demo" aria-label="交互演示">
+          <div class="demo-window">
+            <div class="demo-titlebar">
+              <span></span><span></span><span></span>
+              <em>Companion · 监听中</em>
+            </div>
+            <div class="demo-body">
+              <div class="demo-companion">
+                <div class="avatar-ring"></div>
+                <div class="avatar"></div>
+                <p class="demo-status" id="demoStatus">监听中</p>
+                <p class="demo-utterance" id="demoUtterance">「用中文阅读这篇小说」</p>
+              </div>
+              <div class="demo-flow" id="demoFlow">
+                <div class="flow-step active" data-step="0">🎤 STT</div>
+                <div class="flow-step" data-step="1">⚡ 边缘 ack</div>
+                <div class="flow-step" data-step="2">🔗 Socket Relay</div>
+                <div class="flow-step" data-step="3">👁 读屏滚页</div>
+                <div class="flow-step" data-step="4">🔊 TTS 播报</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="section">
+      <div class="container">
+        <h2>典型演示场景</h2>
+        <p class="section-desc">三种最常见用法，均可在 dev 环境本地复现。</p>
+        <div class="cards">
+          <article class="card">
+            <h3>📖 文档阅读</h3>
+            <p>飞书 / 浏览器文档前台打开，Companion 语音说「用中文阅读并总结」。Cursor 通过 MCP 截屏、微调滚屏、写中文摘要并口播。</p>
+            <code>companion_socket_connect_and_wait → 读屏循环 → companion_task_complete</code>
+          </article>
+          <article class="card">
+            <h3>☎️ 双工语音</h3>
+            <p>按住 PTT 说话，边缘模型即时 ack + 简单动作；Cursor 接管复杂规划。TTS 与 Live2D / VRM 口型同步。</p>
+            <code>voice.stt.final → duplex → Cursor MCP → companion_speak</code>
+          </article>
+          <article class="card">
+            <h3>🖱 桌面自动化</h3>
+            <p>MCP 提供 mouse_move、mouse_click、mouse_scroll、keyboard_*。禁止 cmd+tab；用点击文档区聚焦，小步滚屏阅读。</p>
+            <code>activate_document_app · get_screenshot · mouse_scroll</code>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="section section-alt">
+      <div class="container">
+        <h2>系统架构</h2>
+        <pre class="arch-diagram">┌─────────────────┐     Socket :18765      ┌──────────────────┐
+│  Companion UI   │ ◄────────────────────► │  Daemon + Bridge │
+│  浮层 · TTS/STT │                        │  截屏 · Relay    │
+└────────┬────────┘                        └────────┬─────────┘
+         │                                          │
+         │  Tauri 命令                               │ cursor-socket-client
+         ▼                                          ▼
+┌─────────────────┐     MCP stdio          ┌──────────────────┐
+│  Edge 双工层    │ ─── defer_to_cursor ─► │  Cursor Agent    │
+│  即时 ack/动作  │                        │  大脑 · 读截图   │
+└─────────────────┘                        └────────┬─────────┘
+                                                    │
+                    mouse · keyboard · screenshot ◄─┘</pre>
+      </div>
+    </section>
+
+    <section id="guide" class="section">
+      <div class="container">
+        <h2>使用指导</h2>
+        <ol class="steps">
+          <li>
+            <h3>安装依赖</h3>
+            <p>macOS：Rust、Node 20+、Python 3.12。为 <strong>Cursor</strong> 与 <strong>Python</strong> 授予屏幕录制与辅助功能。</p>
+            <pre><code>git clone https://github.com/jsCanvas/hui-agent.git
+cd hui-agent/repo/client/mcp-server
+python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+cd ../ui && npm install && cd .. && npm install</code></pre>
+          </li>
+          <li>
+            <h3>启动桌面端</h3>
+            <pre><code>cd hui-agent/repo/client && npm run dev</code></pre>
+            <p>Companion 浮层出现在右下角；Daemon health：<code>http://127.0.0.1:18766/health</code></p>
+          </li>
+          <li>
+            <h3>配置 Cursor MCP</h3>
+            <p>将 <code>mcp-server/.venv/bin/python -m hui_mcp</code> 写入 Cursor MCP 配置，启用 <code>hui-agent-desktop</code>。</p>
+          </li>
+          <li>
+            <h3>连接 Socket Relay</h3>
+            <p>在 Cursor 中说「连接 socket」，或运行：</p>
+            <pre><code>./scripts/connect-cursor-socket.sh</code></pre>
+            <p>或调用 MCP <code>companion_socket_connect_and_wait</code>，Companion 显示「监听中」。</p>
+          </li>
+          <li>
+            <h3>发起任务</h3>
+            <p>Companion 语音（PTT）或文字输入。任务完成后 <code>companion_task_complete</code> 默认 <code>auto_wait</code> 自动继续监听。</p>
+          </li>
+        </ol>
+        <p class="more-docs">详细文档：<a href="https://github.com/jsCanvas/hui-agent/blob/main/docs/prd/companion-usage.md">Companion 使用说明</a> ·
+          <a href="https://github.com/jsCanvas/hui-agent/blob/main/repo/client/README.md">Client README</a></p>
+      </div>
+    </section>
+
+    <section class="section cta-section">
+      <div class="container cta-box">
+        <h2>开始构建你的桌面 AI 工作流</h2>
+        <p>开源仓库 · 技术论文 · 可本地运行的完整客户端</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="https://github.com/jsCanvas/hui-agent" target="_blank" rel="noopener">GitHub 仓库</a>
+          <a class="btn btn-ghost" href="../paper/PAPER.md">阅读论文</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 HuiAgent · <a href="https://github.com/jsCanvas/hui-agent">jsCanvas/hui-agent</a></p>
+    </div>
+  </footer>
+  <script src="main.js"></script>
+</body>
+</html>

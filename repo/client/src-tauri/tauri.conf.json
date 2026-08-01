@@ -1,0 +1,61 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "HuiAgent",
+  "version": "0.1.0",
+  "identifier": "com.huiagent.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev --prefix ui",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build --prefix ui",
+    "frontendDist": "../ui/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "settings",
+        "title": "HuiAgent 设置",
+        "width": 760,
+        "height": 640,
+        "center": true,
+        "visible": false,
+        "resizable": true
+      },
+      {
+        "label": "companion",
+        "title": "HuiAgent",
+        "width": 252,
+        "height": 220,
+        "decorations": false,
+        "transparent": true,
+        "acceptFirstMouse": true,
+        "backgroundColor": "#00000000",
+        "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true,
+        "visible": true,
+        "shadow": false,
+        "skipTaskbar": true,
+        "resizable": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "macOS": {
+      "infoPlist": "macos/Info.plist"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {}
+}
