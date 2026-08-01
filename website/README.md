@@ -16,11 +16,12 @@ python3 -m http.server 8080
 
 Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
 
-演示区肖像与 Companion 共用 **seq-webp** 资源（idle/listening 静态首帧，speaking 循环采样）：
+演示区肖像为 Companion 同源文件（**原样复制，不二次压缩**）：
+
+`repo/client/ui/public/avatar/seq-webp/listening/frame_0001.webp`
 
 ```bash
 cd website && bash scripts/prepare-demo-frames.sh
-# 2× 像素缓冲：bash scripts/prepare-demo-frames.sh 208 88
 ```
 
 ```bash
