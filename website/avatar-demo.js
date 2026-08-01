@@ -1,18 +1,18 @@
-/** HD portrait sequence player — same character as Companion seq-webp/speaking. */
+/** Portrait player — mirrors Companion AvatarSequencePlayer (seq-webp, static idle/listening). */
 (function () {
   const canvas = document.getElementById("demoAvatar");
   if (!canvas) return;
 
-  const ctx = canvas.getContext("2d", { alpha: false });
+  const DISPLAY_W = 104;
+  const DISPLAY_H = 141;
+  const ctx = canvas.getContext("2d", { alpha: true });
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  const cache = new Map();
+  const bitmapCache = new Map();
   let manifest = null;
   let seqKey = "listening";
-  let acc = 0;
-  let frameIndex = 0;
-  let lastTime = 0;
+  let playback = { seqKey: "", acc: 0, lastIndex: 0, lastTime: 0 };
   let rafId = 0;
 
   const STEP_SEQUENCES = ["listening", "listening", "idle", "idle", "speaking"];
@@ -22,55 +22,80 @@
     return `${seq.dir}/${seq.pattern.replace("%04d", n)}`;
   }
 
-  function loadImage(url) {
-    if (cache.has(url)) return cache.get(url);
-    const p = new Promise((resolve, reject) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(url));
-      img.src = url;
+  function bitmapKey(seq, index) {
+    return `${seq.dir}#${index}@${canvas.width}x${canvas.height}`;
+  }
+
+  async function loadDisplayBitmap(seq, index) {
+    const i = Math.max(0, Math.min(seq.count - 1, index));
+    const key = bitmapKey(seq, i);
+    if (bitmapCache.has(key)) return bitmapCache.get(key);
+
+    const img = new Image();
+    img.decoding = "async";
+    img.src = frameUrl(seq, i);
+    await img.decode?.().catch(() => new Promise((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error(img.src));
+    }));
+
+    const bitmap = await createImageBitmap(img, {
+      resizeWidth: canvas.width,
+      resizeHeight: canvas.height,
+      resizeQuality: "high",
     });
-    cache.set(url, p);
-    return p;
+    bitmapCache.set(key, bitmap);
+    return bitmap;
   }
 
   async function preloadSeq(key) {
     const seq = manifest?.sequences?.[key];
     if (!seq?.count) return;
+    if (key === "idle" || key === "listening") {
+      await loadDisplayBitmap(seq, 0);
+      return;
+    }
+    const head = Math.min(seq.count, 12);
     await Promise.all(
-      Array.from({ length: seq.count }, (_, i) =>
-        loadImage(frameUrl(seq, i)).catch(() => null),
+      Array.from({ length: head }, (_, i) =>
+        loadDisplayBitmap(seq, i).catch(() => null),
       ),
     );
   }
 
-  function drawContain(img) {
-    const cw = canvas.width;
-    const ch = canvas.height;
-    const iw = img.naturalWidth || img.width;
-    const ih = img.naturalHeight || img.height;
-    const scale = Math.min(cw / iw, ch / ih);
-    const w = iw * scale;
-    const h = ih * scale;
-    const x = (cw - w) / 2;
-    const y = (ch - h) / 2;
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, cw, ch);
-    ctx.drawImage(img, x, y, w, h);
+  function drawBitmap(bitmap) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   }
 
   async function drawFrame(key, index) {
     const seq = manifest?.sequences?.[key];
     if (!seq?.count) return;
-    const idx = ((index % seq.count) + seq.count) % seq.count;
+    const idx = key === "idle" || key === "listening" ? 0 : index % seq.count;
     try {
-      const img = await loadImage(frameUrl(seq, idx));
-      drawContain(img);
-      frameIndex = idx;
+      const bitmap = await loadDisplayBitmap(seq, idx);
+      drawBitmap(bitmap);
+      playback.lastIndex = idx;
     } catch {
       /* keep previous frame */
     }
+  }
+
+  function advanceIndex(key, seq, now) {
+    if (key === "idle" || key === "listening") return 0;
+
+    if (playback.seqKey !== key) {
+      playback.seqKey = key;
+      playback.acc = 0;
+      playback.lastIndex = 0;
+      playback.lastTime = now;
+    }
+
+    const delta =
+      playback.lastTime > 0 ? Math.min(50, now - playback.lastTime) / 1000 : 0;
+    playback.lastTime = now;
+    playback.acc += delta * (seq.fps || 12);
+    return Math.floor(playback.acc) % seq.count;
   }
 
   function tick(now) {
@@ -78,23 +103,32 @@
     if (!manifest) return;
     const seq = manifest.sequences[seqKey];
     if (!seq?.count) return;
-    const dt = lastTime ? Math.min(50, now - lastTime) : 16;
-    lastTime = now;
-    acc += dt;
-    const frameMs = 1000 / (seq.fps || 8);
-    while (acc >= frameMs) {
-      acc -= frameMs;
-      const next = (frameIndex + 1) % seq.count;
-      void drawFrame(seqKey, next);
+
+    const index = advanceIndex(seqKey, seq, now);
+    if (index !== playback.lastIndex || playback.seqKey !== seqKey) {
+      void drawFrame(seqKey, index);
     }
+
+    if (seqKey === "speaking") {
+      for (let off = 1; off <= 6; off += 1) {
+        const next = (index + off) % seq.count;
+        void loadDisplayBitmap(seq, next).catch(() => null);
+      }
+    }
+  }
+
+  function applyModeClass(key) {
+    const stage = canvas.closest(".avatar-stage");
+    if (!stage) return;
+    stage.dataset.avatarMode = key;
   }
 
   window.setDemoAvatarSequence = function (key) {
     if (!manifest?.sequences?.[key]) return;
     if (seqKey === key) return;
     seqKey = key;
-    frameIndex = 0;
-    acc = 0;
+    playback = { seqKey: "", acc: 0, lastIndex: -1, lastTime: 0 };
+    applyModeClass(key);
     void drawFrame(key, 0);
   };
 
@@ -106,17 +140,18 @@
     .then((r) => r.json())
     .then(async (data) => {
       manifest = data;
+      canvas.width = DISPLAY_W * 2;
+      canvas.height = DISPLAY_H * 2;
       await Promise.all([
         preloadSeq("idle"),
         preloadSeq("listening"),
         preloadSeq("speaking"),
       ]);
+      applyModeClass("listening");
       await drawFrame("listening", 0);
-      lastTime = 0;
       rafId = requestAnimationFrame(tick);
     })
     .catch(() => {
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 })();

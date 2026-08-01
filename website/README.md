@@ -16,11 +16,11 @@ python3 -m http.server 8080
 
 Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
 
-演示区肖像序列帧来自 Companion **beifen/speaking HD PNG**（与桌面端白边形象同一套），按区段采样 idle / listening / speaking：
+演示区肖像与 Companion 共用 **seq-webp** 资源（idle/listening 静态首帧，speaking 循环采样）：
 
 ```bash
 cd website && bash scripts/prepare-demo-frames.sh
-# 宽度与质量：bash scripts/prepare-demo-frames.sh 200 86
+# 2× 像素缓冲：bash scripts/prepare-demo-frames.sh 208 88
 ```
 
 ```bash

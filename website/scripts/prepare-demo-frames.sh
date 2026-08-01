@@ -1,65 +1,57 @@
 #!/usr/bin/env bash
-# Build website demo loops from HD portrait PNGs (same white-outline character as Companion speaking).
+# Build website demo frames from Companion seq-webp (same assets as desktop app).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Full HD frames (182 speaking); fallback to seq-webp if beifen missing
-SRC="${ROOT}/../repo/client/ui/public/avatar/beifen/speaking"
-WEBP_SRC="${ROOT}/../repo/client/ui/public/avatar/seq-webp/speaking"
+SEQ="$ROOT/../repo/client/ui/public/avatar/seq-webp"
 OUT="$ROOT/assets/avatar"
-WIDTH="${1:-200}"
-QUALITY="${2:-86}"
+# 2× Companion display (104×141 → 208×282 canvas)
+WIDTH="${1:-208}"
+QUALITY="${2:-88}"
 
 if ! command -v cwebp >/dev/null; then
   echo "error: cwebp not found (brew install webp)"
   exit 1
 fi
 
-compress_frame() {
+compress_one() {
   local src="$1" dst="$2"
   cwebp -q "$QUALITY" -resize "$WIDTH" 0 "$src" -o "$dst" >/dev/null 2>&1
 }
 
-# Sample numbered frames from source dir; output frame_0001..N.webp
-sample_range() {
-  local src_dir="$1" out_dir="$2" start="$3" step="$4" max="$5"
+copy_seq_frame() {
+  local seq="$1" frame="$2" out_dir="$3" out_name="$4"
+  local src="$SEQ/$seq/frame_$(printf '%04d' "$frame").webp"
+  if [ ! -f "$src" ]; then
+    echo "error: missing $src"
+    exit 1
+  fi
+  mkdir -p "$out_dir"
+  compress_one "$src" "$out_dir/$out_name"
+}
+
+sample_speaking() {
+  local out_dir="$1" step="$2" max="$3"
   rm -rf "$out_dir"
   mkdir -p "$out_dir"
-  local n=0 i="$start"
+  local n=0 i=1
   while (( n < max )); do
-    printf -v src_num "%04d" "$i"
-    local src="$src_dir/frame_${src_num}.webp"
-    if [ ! -f "$src" ]; then
-      src="$src_dir/frame_${src_num}.png"
-    fi
-    if [ ! -f "$src" ]; then
-      i=$((i + step))
-      if (( i > start + step * max * 3 )); then break; fi
-      continue
-    fi
+    local src="$SEQ/speaking/frame_$(printf '%04d' "$i").webp"
+    if [ ! -f "$src" ]; then break; fi
     n=$((n + 1))
-    printf -v idx "%04d" "$n"
-    compress_frame "$src" "$out_dir/frame_${idx}.webp"
+    compress_one "$src" "$out_dir/frame_$(printf '%04d' "$n").webp"
     i=$((i + step))
   done
   echo "$n"
 }
 
-if [ ! -d "$SRC" ] || [ -z "$(ls -A "$SRC"/frame_*.png 2>/dev/null)" ]; then
-  SRC="$WEBP_SRC"
-  echo "note: using seq-webp/speaking (beifen PNG not found)"
-fi
-
 rm -rf "$OUT/idle" "$OUT/listening" "$OUT/speaking"
-mkdir -p "$OUT/idle" "$OUT/listening" "$OUT/speaking"
+mkdir -p "$OUT"
 
-# Same character, different motion segments from speaking loop:
-# idle     — early frames, mouth mostly closed
-# listening — mid-early frames, subtle head motion
-# speaking  — full loop with mouth movement
-IDLE_N=$(sample_range "$SRC" "$OUT/idle" 1 4 18)
-LISTEN_N=$(sample_range "$SRC" "$OUT/listening" 3 3 14)
-SPEAK_N=$(sample_range "$SRC" "$OUT/speaking" 1 9 22)
+# Match Companion: idle / listening are single-frame holds (seq-webp only ships frame_0001).
+copy_seq_frame idle 1 "$OUT/idle" "frame_0001.webp"
+copy_seq_frame listening 1 "$OUT/listening" "frame_0001.webp"
+SPEAK_N=$(sample_speaking "$OUT/speaking" 8 24)
 
 cat > "$OUT/manifest.json" <<EOF
 {
@@ -70,13 +62,13 @@ cat > "$OUT/manifest.json" <<EOF
     "idle": {
       "dir": "assets/avatar/idle",
       "pattern": "frame_%04d.webp",
-      "count": ${IDLE_N},
+      "count": 1,
       "fps": 8
     },
     "listening": {
       "dir": "assets/avatar/listening",
       "pattern": "frame_%04d.webp",
-      "count": ${LISTEN_N},
+      "count": 1,
       "fps": 6
     },
     "speaking": {
@@ -85,10 +77,15 @@ cat > "$OUT/manifest.json" <<EOF
       "count": ${SPEAK_N},
       "fps": 12
     }
+  },
+  "modeMap": {
+    "idle": "idle",
+    "listening": "listening",
+    "speaking": "speaking"
   }
 }
 EOF
 
-echo "idle: $IDLE_N  listening: $LISTEN_N  speaking: $SPEAK_N"
-echo "source: $SRC"
+echo "idle: 1  listening: 1  speaking: ${SPEAK_N}"
+echo "source: $SEQ"
 echo "done -> $OUT ($(du -sh "$OUT" | awk '{print $1}'))"
