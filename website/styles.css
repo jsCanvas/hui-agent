@@ -123,20 +123,20 @@ body {
 }
 .demo-body { padding: 1.5rem; }
 .demo-companion { text-align: center; margin-bottom: 1.5rem; }
-.avatar-ring {
-  width: 88px; height: 88px; margin: 0 auto 0.75rem;
-  border-radius: 50%;
-  background: var(--gradient);
-  padding: 3px;
-  animation: pulse 2.5s ease-in-out infinite;
+.avatar-stage {
+  width: 88px;
+  height: 100px;
+  margin: 0 auto 0.75rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
-.avatar {
-  width: 100%; height: 100%; border-radius: 50%;
-  background: linear-gradient(160deg, #2d3548, #1a1f2a);
-}
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.3); }
-  50% { box-shadow: 0 0 0 12px rgba(110, 231, 183, 0); }
+#demoAvatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .demo-status {
   display: inline-block; padding: 0.2rem 0.6rem;

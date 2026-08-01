@@ -16,6 +16,12 @@ python3 -m http.server 8080
 
 Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
 
+演示区肖像序列帧来自 Companion 同源视频，生成命令：
+
+```bash
+cd website && bash scripts/prepare-demo-frames.sh
+```
+
 ```bash
 # 手动触发：GitHub → Actions → pages → Run workflow
 # 或推送 website/ 变更后自动部署

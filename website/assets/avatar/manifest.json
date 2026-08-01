@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "width": 140,
+  "height": 159,
+  "sequences": {
+    "idle": {
+      "dir": "assets/avatar/idle",
+      "pattern": "frame_%04d.webp",
+      "count": 16,
+      "fps": 8
+    },
+    "listening": {
+      "dir": "assets/avatar/listening",
+      "pattern": "frame_%04d.webp",
+      "count": 12,
+      "fps": 6
+    },
+    "speaking": {
+      "dir": "assets/avatar/speaking",
+      "pattern": "frame_%04d.webp",
+      "count": 20,
+      "fps": 10
+    }
+  }
+}

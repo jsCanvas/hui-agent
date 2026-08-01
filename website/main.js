@@ -2,7 +2,7 @@
   const steps = document.querySelectorAll(".flow-step");
   const statusEl = document.getElementById("demoStatus");
   const utteranceEl = document.getElementById("demoUtterance");
-  const labels = ["监听中", "执行中", "Relay 转发", "读屏滚页", "播报完成"];
+  const labels = ["监听中", "执行中", "Relay 转发", "读屏滚页", "播报中"];
   const utterances = [
     "「用中文阅读这篇小说」",
     "「好的，我先读屏看一下」",
@@ -16,6 +16,9 @@
     steps.forEach((el, idx) => el.classList.toggle("active", idx === i));
     if (statusEl) statusEl.textContent = labels[i];
     if (utteranceEl) utteranceEl.textContent = utterances[i];
+    if (typeof window.setDemoAvatarStep === "function") {
+      window.setDemoAvatarStep(i);
+    }
     i = (i + 1) % steps.length;
   }
 
