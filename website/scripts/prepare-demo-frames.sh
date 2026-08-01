@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Build lightweight WebP demo loops from Companion HD portrait seq-webp (white-outline character).
+# Build website demo loops from HD portrait PNGs (same white-outline character as Companion speaking).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AVATAR="$ROOT/../repo/client/ui/public/avatar/seq-webp"
+# Full HD frames (182 speaking); fallback to seq-webp if beifen missing
+SRC="${ROOT}/../repo/client/ui/public/avatar/beifen/speaking"
+WEBP_SRC="${ROOT}/../repo/client/ui/public/avatar/seq-webp/speaking"
 OUT="$ROOT/assets/avatar"
-WIDTH="${1:-160}"
-QUALITY="${2:-82}"
+WIDTH="${1:-200}"
+QUALITY="${2:-86}"
 
 if ! command -v cwebp >/dev/null; then
   echo "error: cwebp not found (brew install webp)"
@@ -18,38 +20,46 @@ compress_frame() {
   cwebp -q "$QUALITY" -resize "$WIDTH" 0 "$src" -o "$dst" >/dev/null 2>&1
 }
 
-sample_seq() {
-  local src_dir="$1" out_dir="$2" step="$3" max="$4"
+# Sample numbered frames from source dir; output frame_0001..N.webp
+sample_range() {
+  local src_dir="$1" out_dir="$2" start="$3" step="$4" max="$5"
   rm -rf "$out_dir"
   mkdir -p "$out_dir"
-  local i=0 n=0
-  for f in "$src_dir"/frame_*.webp; do
-    [ -e "$f" ] || continue
-    i=$((i + 1))
-    if (( (i - 1) % step != 0 )); then continue; fi
+  local n=0 i="$start"
+  while (( n < max )); do
+    printf -v src_num "%04d" "$i"
+    local src="$src_dir/frame_${src_num}.webp"
+    if [ ! -f "$src" ]; then
+      src="$src_dir/frame_${src_num}.png"
+    fi
+    if [ ! -f "$src" ]; then
+      i=$((i + step))
+      if (( i > start + step * max * 3 )); then break; fi
+      continue
+    fi
     n=$((n + 1))
     printf -v idx "%04d" "$n"
-    compress_frame "$f" "$out_dir/frame_${idx}.webp"
-    if (( n >= max )); then break; fi
+    compress_frame "$src" "$out_dir/frame_${idx}.webp"
+    i=$((i + step))
   done
   echo "$n"
 }
 
+if [ ! -d "$SRC" ] || [ -z "$(ls -A "$SRC"/frame_*.png 2>/dev/null)" ]; then
+  SRC="$WEBP_SRC"
+  echo "note: using seq-webp/speaking (beifen PNG not found)"
+fi
+
 rm -rf "$OUT/idle" "$OUT/listening" "$OUT/speaking"
 mkdir -p "$OUT/idle" "$OUT/listening" "$OUT/speaking"
 
-# HD portrait loops (same character as Companion seq-webp)
-IDLE_N=$(sample_seq "$AVATAR/greetings" "$OUT/idle" 13 16)
-LISTEN_N=$(sample_seq "$AVATAR/greetings" "$OUT/listening" 17 12)
-SPEAK_N=$(sample_seq "$AVATAR/speaking" "$OUT/speaking" 9 20)
-
-# Fallback if greetings incomplete
-if (( IDLE_N < 4 )); then
-  IDLE_N=$(sample_seq "$AVATAR/speaking" "$OUT/idle" 11 16)
-fi
-if (( LISTEN_N < 4 )); then
-  LISTEN_N=$(sample_seq "$AVATAR/speaking" "$OUT/listening" 15 12)
-fi
+# Same character, different motion segments from speaking loop:
+# idle     — early frames, mouth mostly closed
+# listening — mid-early frames, subtle head motion
+# speaking  — full loop with mouth movement
+IDLE_N=$(sample_range "$SRC" "$OUT/idle" 1 4 18)
+LISTEN_N=$(sample_range "$SRC" "$OUT/listening" 3 3 14)
+SPEAK_N=$(sample_range "$SRC" "$OUT/speaking" 1 9 22)
 
 cat > "$OUT/manifest.json" <<EOF
 {
@@ -73,11 +83,12 @@ cat > "$OUT/manifest.json" <<EOF
       "dir": "assets/avatar/speaking",
       "pattern": "frame_%04d.webp",
       "count": ${SPEAK_N},
-      "fps": 10
+      "fps": 12
     }
   }
 }
 EOF
 
 echo "idle: $IDLE_N  listening: $LISTEN_N  speaking: $SPEAK_N"
+echo "source: $SRC"
 echo "done -> $OUT ($(du -sh "$OUT" | awk '{print $1}'))"

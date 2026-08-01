@@ -124,13 +124,13 @@ body {
 .demo-body { padding: 1.5rem; }
 .demo-companion { text-align: center; margin-bottom: 1.5rem; }
 .avatar-stage {
-  width: 88px;
-  height: 119px;
+  width: 104px;
+  height: 141px;
   margin: 0 auto 0.75rem;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: #000000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
 }
 #demoAvatar {
   display: block;

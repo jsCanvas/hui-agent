@@ -1,14 +1,17 @@
-/** Real portrait sequence-frame player for the hero demo (from Companion video sources). */
+/** HD portrait sequence player — same character as Companion seq-webp/speaking. */
 (function () {
   const canvas = document.getElementById("demoAvatar");
   if (!canvas) return;
 
-  const ctx = canvas.getContext("2d", { alpha: true });
+  const ctx = canvas.getContext("2d", { alpha: false });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
   const cache = new Map();
   let manifest = null;
   let seqKey = "listening";
   let acc = 0;
-  let lastIndex = -1;
+  let frameIndex = 0;
   let lastTime = 0;
   let rafId = 0;
 
@@ -23,6 +26,7 @@
     if (cache.has(url)) return cache.get(url);
     const p = new Promise((resolve, reject) => {
       const img = new Image();
+      img.decoding = "async";
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error(url));
       img.src = url;
@@ -34,10 +38,9 @@
   async function preloadSeq(key) {
     const seq = manifest?.sequences?.[key];
     if (!seq?.count) return;
-    const head = Math.min(seq.count, 8);
     await Promise.all(
-      Array.from({ length: head }, (_, i) => loadImage(frameUrl(seq, i))).map((p) =>
-        p.catch(() => null),
+      Array.from({ length: seq.count }, (_, i) =>
+        loadImage(frameUrl(seq, i)).catch(() => null),
       ),
     );
   }
@@ -52,7 +55,8 @@
     const h = ih * scale;
     const x = (cw - w) / 2;
     const y = (ch - h) / 2;
-    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, cw, ch);
     ctx.drawImage(img, x, y, w, h);
   }
 
@@ -60,11 +64,10 @@
     const seq = manifest?.sequences?.[key];
     if (!seq?.count) return;
     const idx = ((index % seq.count) + seq.count) % seq.count;
-    if (idx === lastIndex && key === seqKey) return;
     try {
       const img = await loadImage(frameUrl(seq, idx));
       drawContain(img);
-      lastIndex = idx;
+      frameIndex = idx;
     } catch {
       /* keep previous frame */
     }
@@ -75,14 +78,13 @@
     if (!manifest) return;
     const seq = manifest.sequences[seqKey];
     if (!seq?.count) return;
-    const dt = lastTime ? Math.min(64, now - lastTime) : 16;
+    const dt = lastTime ? Math.min(50, now - lastTime) : 16;
     lastTime = now;
     acc += dt;
     const frameMs = 1000 / (seq.fps || 8);
-    if (acc >= frameMs) {
-      const steps = Math.floor(acc / frameMs);
-      acc -= steps * frameMs;
-      const next = lastIndex < 0 ? 0 : (lastIndex + steps) % seq.count;
+    while (acc >= frameMs) {
+      acc -= frameMs;
+      const next = (frameIndex + 1) % seq.count;
       void drawFrame(seqKey, next);
     }
   }
@@ -91,29 +93,30 @@
     if (!manifest?.sequences?.[key]) return;
     if (seqKey === key) return;
     seqKey = key;
-    lastIndex = -1;
+    frameIndex = 0;
     acc = 0;
-    void preloadSeq(key).then(() => drawFrame(key, 0));
+    void drawFrame(key, 0);
   };
 
   window.setDemoAvatarStep = function (stepIndex) {
-    const key = STEP_SEQUENCES[stepIndex] || "idle";
-    window.setDemoAvatarSequence(key);
+    window.setDemoAvatarSequence(STEP_SEQUENCES[stepIndex] || "idle");
   };
 
   fetch("assets/avatar/manifest.json")
     .then((r) => r.json())
     .then(async (data) => {
       manifest = data;
-      await preloadSeq("listening");
-      await preloadSeq("speaking");
-      await preloadSeq("idle");
+      await Promise.all([
+        preloadSeq("idle"),
+        preloadSeq("listening"),
+        preloadSeq("speaking"),
+      ]);
       await drawFrame("listening", 0);
       lastTime = 0;
       rafId = requestAnimationFrame(tick);
     })
     .catch(() => {
-      ctx.fillStyle = "#2d3548";
+      ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     });
 })();
