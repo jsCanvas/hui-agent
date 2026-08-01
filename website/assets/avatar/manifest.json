@@ -2,5 +2,31 @@
   "version": 1,
   "width": 1800,
   "height": 2435,
-  "portrait": "assets/avatar/portrait.webp"
+  "sequences": {
+    "listening": {
+      "dir": "assets/avatar/listening",
+      "pattern": "frame_%04d.webp",
+      "count": 14,
+      "fps": 6
+    },
+    "greetings": {
+      "dir": "assets/avatar/greetings",
+      "pattern": "frame_%04d.webp",
+      "count": 24,
+      "fps": 12
+    },
+    "idle": {
+      "dir": "assets/avatar/idle",
+      "pattern": "frame_%04d.webp",
+      "count": 12,
+      "fps": 8
+    },
+    "speaking": {
+      "dir": "assets/avatar/speaking",
+      "pattern": "frame_%04d.webp",
+      "count": 22,
+      "fps": 12
+    }
+  },
+  "stepMap": ["listening", "greetings", "idle", "idle", "speaking"]
 }

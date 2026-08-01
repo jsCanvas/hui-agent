@@ -16,6 +16,9 @@
     steps.forEach((el, idx) => el.classList.toggle("active", idx === i));
     if (statusEl) statusEl.textContent = labels[i];
     if (utteranceEl) utteranceEl.textContent = utterances[i];
+    if (typeof window.setDemoAvatarStep === "function") {
+      window.setDemoAvatarStep(i);
+    }
     i = (i + 1) % steps.length;
   }
 

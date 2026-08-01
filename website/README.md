@@ -1,35 +1,16 @@
-# HuiAgent 官网
+# 官网演示序列帧
 
-静态介绍页，可部署到 GitHub Pages。
+四套动画**全部**从 `seq-webp/greetings` 同角色采样（与 `greetings/frame_0001.webp` 一致），按 tab 切换不同区段：
 
-## 本地预览
-
-```bash
-cd website
-python3 -m http.server 8080
-# 打开 http://localhost:8080
-```
-
-## GitHub Pages
-
-**前置条件（只需一次）**：仓库 **Settings → Pages → Build and deployment → Source** 选 **GitHub Actions**（不要选 Deploy from a branch）。
-
-Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
-
-演示区肖像为 Companion 同源文件（**原样复制，不二次压缩**）：
-
-`repo/client/ui/public/avatar/seq-webp/greetings/frame_0001.webp`
+| Tab | 序列 | 区段 |
+|-----|------|------|
+| STT | listening | 早期微动 |
+| 边缘 ack | greetings | 挥手问候 |
+| Relay / 读屏 | idle | 慢速待机 |
+| TTS | speaking | 中段表情 |
 
 ```bash
 cd website && bash scripts/prepare-demo-frames.sh
 ```
 
-```bash
-# 手动触发：GitHub → Actions → pages → Run workflow
-# 或推送 website/ 变更后自动部署
-git push origin main
-```
-
-部署地址：<https://jscanvas.github.io/hui-agent/>
-
-> branch 部署模式只能选 `/` 或 `/docs`，**不能**选 `/website`；请用 GitHub Actions。
+**禁止**回退到 `seq/*.png` 或 `seq-webp/listening`（旧版错误形象）。

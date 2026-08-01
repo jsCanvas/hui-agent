@@ -52,16 +52,8 @@
             </div>
             <div class="demo-body">
               <div class="demo-companion">
-                <div class="avatar-stage">
-                  <img
-                    id="demoAvatar"
-                    class="demo-portrait"
-                    src="assets/avatar/portrait.webp?v=greetings1"
-                    width="104"
-                    height="141"
-                    alt="Companion 肖像"
-                    decoding="async"
-                  />
+                <div class="avatar-stage" data-avatar-mode="listening">
+                  <canvas id="demoAvatar" width="208" height="282" aria-label="Companion 序列帧演示"></canvas>
                 </div>
                 <p class="demo-status" id="demoStatus">监听中</p>
                 <p class="demo-utterance" id="demoUtterance">「用中文阅读这篇小说」</p>
@@ -176,6 +168,7 @@ cd ../ui && npm install && cd .. && npm install</code></pre>
       <p>© 2026 HuiAgent · <a href="https://github.com/jsCanvas/hui-agent">jsCanvas/hui-agent</a></p>
     </div>
   </footer>
-  <script src="main.js?v=2"></script>
+  <script src="avatar-demo.js?v=4"></script>
+  <script src="main.js?v=4"></script>
 </body>
 </html>
