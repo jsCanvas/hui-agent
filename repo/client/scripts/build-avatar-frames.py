@@ -16,7 +16,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "ui" / "public" / "avatar"
-BASE = PUBLIC / "companion-portrait.png"
+BASE = PUBLIC / "seq-webp" / "greetings" / "frame_0001.webp"
 MANIFEST = PUBLIC / "manifest.json"
 
 

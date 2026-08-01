@@ -18,7 +18,7 @@ Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
 
 演示区肖像为 Companion 同源文件（**原样复制，不二次压缩**）：
 
-`repo/client/ui/public/avatar/seq-webp/listening/frame_0001.webp`
+`repo/client/ui/public/avatar/seq-webp/greetings/frame_0001.webp`
 
 ```bash
 cd website && bash scripts/prepare-demo-frames.sh

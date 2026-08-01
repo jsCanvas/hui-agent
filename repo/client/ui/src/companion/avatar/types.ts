@@ -19,10 +19,7 @@ export const AVATAR_STATE_LABEL: Record<AvatarMode, string> = {
   monitoring: "监听中",
 };
 
-export const PORTRAIT_URL =
-  import.meta.env.VITE_AVATAR_PORTRAIT_URL ?? "/avatar/companion-portrait.png";
-
-/** Default sequence-frame portrait. Set VITE_USE_SEQUENCE=false for canvas only. */
+/** Default sequence-frame portrait. Set VITE_USE_SEQUENCE=false to hide avatar. */
 export const USE_SEQUENCE = import.meta.env.VITE_USE_SEQUENCE !== "false";
 
 /** Optional 3D VRM. Set VITE_USE_VRM=true to enable. */

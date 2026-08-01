@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copy Companion listening portrait verbatim (no re-encode).
+# Copy Companion greetings portrait verbatim (no re-encode).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC="$ROOT/../repo/client/ui/public/avatar/seq-webp/listening/frame_0001.webp"
+SRC="$ROOT/../repo/client/ui/public/avatar/seq-webp/greetings/frame_0001.webp"
 OUT="$ROOT/assets/avatar/portrait.webp"
 
 if [ ! -f "$SRC" ]; then

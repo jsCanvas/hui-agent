@@ -20,8 +20,8 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "ui" / "public" / "avatar"
-SOURCE = PUBLIC / "source-portrait.png"
-PORTRAIT = PUBLIC / "companion-portrait.png"
+SOURCE = PUBLIC / "seq-webp" / "greetings" / "frame_0001.webp"
+PORTRAIT = SOURCE
 MANIFEST = PUBLIC / "manifest.json"
 VIDEO_DIR = PUBLIC / "video"
 SEQ_ROOT = PUBLIC / "seq"

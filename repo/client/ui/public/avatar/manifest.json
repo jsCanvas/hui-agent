@@ -42,7 +42,7 @@
     "waiting": "idle",
     "executing": "idle",
     "completed": "idle",
-    "listening": "listening",
+    "listening": "idle",
     "speaking": "speaking"
   }
 }

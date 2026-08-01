@@ -395,8 +395,7 @@ body.companion-root #root {
   pointer-events: none;
 }
 
-.avatar-portrait .avatar-canvas,
-.avatar-cartoon .avatar-canvas {
+.avatar-portrait .avatar-canvas {
   display: block;
   width: 104px;
   height: 118px;
@@ -414,19 +413,6 @@ body.companion-root #root {
 
 .avatar-sequence.avatar-listening .avatar-canvas {
   filter: drop-shadow(0 2px 8px rgba(52, 211, 153, 0.22));
-}
-
-.avatar-cartoon.avatar-speaking .avatar-canvas {
-  filter: drop-shadow(0 2px 12px rgba(251, 113, 133, 0.42));
-}
-
-.avatar-cartoon.avatar-listening .avatar-canvas {
-  filter: drop-shadow(0 2px 10px rgba(52, 211, 153, 0.32));
-}
-
-.avatar-cartoon.avatar-resting .avatar-canvas,
-.avatar-cartoon.avatar-conversation .avatar-canvas {
-  filter: drop-shadow(0 3px 10px rgba(244, 63, 94, 0.18));
 }
 
 .avatar-live2d canvas,

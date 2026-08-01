@@ -1,4 +1,4 @@
-/** Single portrait — exact seq-webp/listening/frame_0001.webp, scaled like Companion. */
+/** Single portrait — exact seq-webp/greetings/frame_0001.webp, scaled like Companion. */
 (function () {
   const canvas = document.getElementById("demoAvatar");
   if (!canvas) return;
