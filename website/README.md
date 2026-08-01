@@ -16,10 +16,11 @@ python3 -m http.server 8080
 
 Workflow：`.github/workflows/pages.yml`（从 `website/` 目录发布）
 
-演示区肖像序列帧来自 Companion 同源视频，生成命令：
+演示区肖像序列帧来自 Companion **HD seq-webp**（白边形象，与桌面端一致），生成命令：
 
 ```bash
 cd website && bash scripts/prepare-demo-frames.sh
+# 可选：宽度与质量  bash scripts/prepare-demo-frames.sh 160 82
 ```
 
 ```bash

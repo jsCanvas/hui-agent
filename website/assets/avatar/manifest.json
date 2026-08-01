@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "width": 140,
-  "height": 159,
+  "width": 1800,
+  "height": 2435,
   "sequences": {
     "idle": {
       "dir": "assets/avatar/idle",
