@@ -132,16 +132,14 @@ body {
   background: #000000;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
 }
-.avatar-stage[data-avatar-mode="listening"] #demoAvatar {
-  filter: drop-shadow(0 2px 8px rgba(52, 211, 153, 0.22));
-}
-.avatar-stage[data-avatar-mode="speaking"] #demoAvatar {
-  filter: drop-shadow(0 2px 10px rgba(251, 113, 133, 0.28));
-}
-#demoAvatar {
+#demoAvatar.demo-portrait {
   display: block;
   width: 104px;
   height: 141px;
+  object-fit: contain;
+  object-position: center bottom;
+  background: #000000;
+  filter: drop-shadow(0 2px 10px rgba(251, 113, 133, 0.28));
 }
 .demo-status {
   display: inline-block; padding: 0.2rem 0.6rem;
