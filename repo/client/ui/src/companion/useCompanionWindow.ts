@@ -13,9 +13,9 @@ const PORTRAIT_ASPECT = AVATAR_MAX_WIDTH / AVATAR_DISPLAY.h;
 
 export const COMPANION_WINDOW_SIZE = {
   width: 252,
-  idleHeight: 243,
-  callHeight: 275,
-  callErrorHeight: 315,
+  idleHeight: 271,
+  callHeight: 303,
+  callErrorHeight: 343,
 } as const;
 
 export function isTauriCompanionWindow(): boolean {

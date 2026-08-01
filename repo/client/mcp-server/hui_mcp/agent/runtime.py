@@ -61,9 +61,39 @@ class AgentRuntime:
         self.ctx = ctx
         self._lock = threading.Lock()
 
-    def run(self, text: str, on_progress: ProgressCallback | None = None) -> AgentResult:
+    @staticmethod
+    def _compose_task_text(
+        text: str,
+        image_paths: list[str] | None,
+        file_paths: list[str] | None = None,
+    ) -> str:
+        trimmed = text.strip()
+        attachments: list[str] = []
+        for p in [x.strip() for x in (file_paths or []) if x.strip()]:
+            attachments.append(f"[工作区文件: {p}]")
+        for p in [x.strip() for x in (image_paths or []) if x.strip()]:
+            attachments.append(f"[用户上传图片: {p}]")
+
+        body = trimmed
+        if attachments:
+            ctx = "\n".join(attachments)
+            vibe = (
+                "请结合以上 @ 引用的工作区文件与图片，在当前项目上下文中分析并协助 vibe coding。"
+            )
+            body = f"{trimmed}\n\n{ctx}\n\n{vibe}" if trimmed else f"{ctx}\n\n{vibe}"
+        return body
+
+    def run(
+        self,
+        text: str,
+        on_progress: ProgressCallback | None = None,
+        *,
+        image_paths: list[str] | None = None,
+        file_paths: list[str] | None = None,
+    ) -> AgentResult:
         task_id = uuid.uuid4().hex[:10]
         steps: list[StepLog] = []
+        full_text = self._compose_task_text(text, image_paths, file_paths)
 
         def progress(step: str, message: str) -> None:
             steps.append(StepLog(step=step, message=message))
@@ -79,7 +109,7 @@ class AgentRuntime:
                 if on_progress:
                     on_progress(rid, step, message)
 
-            outcome = get_relay().run_task(text, relay_progress)
+            outcome = get_relay().run_task(full_text, relay_progress)
             relay_steps = [StepLog(**s) for s in outcome.get("steps", [])]
             return AgentResult(
                 outcome["task_id"],
@@ -93,9 +123,9 @@ class AgentRuntime:
             from hui_mcp.agent.llm_agent import LlmAgent
 
             progress("plan", "LLM Agent：AI 思考 + MCP 操控桌面")
-            return LlmAgent(self.ctx.config).run(text, self._tool, progress)
+            return LlmAgent(self.ctx.config).run(full_text, self._tool, progress)
 
-        intent = classify(text)
+        intent = classify(full_text)
         progress("plan", f"识别任务类型：{intent.kind.value}")
 
         try:

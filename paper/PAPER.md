@@ -2,6 +2,7 @@
 
 > **Technical Paper v1.0** · 2026-08-01  
 > **作者**：HuiAgent Team / jsCanvas  
+> **English version**: [PAPER.en.md](./PAPER.en.md)  
 > **代码仓库**：[https://github.com/jsCanvas/hui-agent](https://github.com/jsCanvas/hui-agent)  
 > **项目官网**：[https://jscanvas.github.io/hui-agent/](https://jscanvas.github.io/hui-agent/)（GitHub Pages）
 
@@ -9,7 +10,7 @@
 
 ## 摘要（Abstract）
 
-HuiAgent 是一套面向知识工作者的**本地桌面 AI 伴侣**系统。它将透明浮层 UI（Companion）、Python Daemon、Model Context Protocol（MCP）工具链与 Cursor IDE Agent 通过 Socket 长连接耦合，实现「观察屏幕 → 理解文档 → 操作键鼠 → 中文语音反馈」的闭环。本文介绍其分层架构、双工语音（Duplex）边缘响应、Cursor Socket Relay 任务模型，以及以读屏滚页替代后台 OCR 的主动阅读工作流。系统已在 macOS 上验证飞书文档语音阅读、Companion PTT 通话等场景。
+HuiAgent 是一套面向知识工作者的**本地桌面 AI 伴侣**系统。它将透明浮层 UI（Companion）、Python Daemon、Model Context Protocol（MCP）工具链与 Cursor IDE Agent 通过 Socket 长连接耦合，实现「观察屏幕 → 理解文档 → 操作键鼠 → 中文语音反馈」的闭环。Companion 输入区支持**工作区选择、图片上传、`@` 引用项目文件、屏幕画笔标注**，任务可携带文件与图片上下文供 Cursor **vibe coding**。本文介绍其分层架构、双工语音（Duplex）边缘响应、Cursor Socket Relay 任务模型，以及以读屏滚页替代后台 OCR 的主动阅读工作流。系统已在 macOS 上验证飞书文档语音阅读、Companion PTT 通话等场景。
 
 **关键词**：桌面自动化、MCP、Cursor Agent、语音双工、屏幕理解、本地 Daemon
 
@@ -25,6 +26,7 @@ HuiAgent 是一套面向知识工作者的**本地桌面 AI 伴侣**系统。它
 2. **Socket Relay（`:18765`）** 使 Companion 任务以 NDJSON 长连接阻塞等待 Cursor 完成，避免频繁切前台。
 3. **Duplex 双工**：本地边缘层即时 ack 与简单工具执行，Cursor 异步接管完整规划。
 4. **主动读屏工作流**：`get_screenshot` + 视觉理解 + 小步 `mouse_scroll`，替代默认后台 OCR Worker。
+5. **Companion 任务输入增强**：工作区绑定、`@` 提及文件/图片、屏幕画笔标注，任务文本自动附加 `[工作区文件]` / `[用户上传图片]` 上下文。
 
 ---
 
@@ -69,14 +71,37 @@ HuiAgent 填补 **MCP 桌面工具 Host + 轻量 Companion UI + Cursor 大脑** 
 - 不展示长聊天日志；进度通过状态与 TTS 反馈。
 - Tauri 2 壳管理子进程、系统托盘、Socket 事件转发。
 
-### 3.2 Daemon 与 Socket Bridge
+### 3.2 Companion 任务输入与屏幕标注
+
+输入栏上方为**工作区与附件工具条**：
+
+| 能力 | 说明 |
+|------|------|
+| **选择工作区** | 绑定 Cursor 项目目录，写入 `~/.hui-agent/config.json` 的 `cursor.workspace` |
+| **上传图片** | 多选导入至 `{workspace}/.hui-agent/uploads/`；icon 角标显示数量；悬停可预览列表并删除 |
+| **`@` 提及** | 输入 `@` 弹出工作区文件与已上传图片；选中后插入 `@path` / `@filename` |
+| **画笔 / 橡皮擦** | 全屏透明 overlay 在页面上画线标注；橡皮擦清除；`Esc` 或再次点画笔退出 |
+| **窗口层级** | Companion 保持 `alwaysOnTop`，始终浮于画板 overlay 之上 |
+
+发送任务时，Rust → Daemon → `runtime._compose_task_text` 解析 `@` 引用，合并 `file_paths` 与 `image_paths`，并在任务正文附加：
+
+```
+[工作区文件: /abs/path/to/file.ts]
+[用户上传图片: /abs/path/to/photo.png]
+
+请结合以上 @ 引用的工作区文件与图片，在当前项目上下文中分析并协助 vibe coding。
+```
+
+工作区文件列表由 Tauri 命令 `list_workspace_mention_files` 在本地遍历（忽略 `.git`、`node_modules` 等目录）。
+
+### 3.3 Daemon 与 Socket Bridge
 
 - **Health**：`http://127.0.0.1:18766/health`
 - **帧缓冲**：10fps 环形缓冲供 `get_recent_frames`
 - **Relay**：`cursor_relay.py` 维护 pending 任务，等待 `companion_task_complete`
 - **Voice**：`/voice/*` HTTP + Socket 事件 `voice.stt.final`
 
-### 3.3 MCP 工具集
+### 3.4 MCP 工具集
 
 核心工具包括：`get_screenshot`、`get_screen_info`、`mouse_move`、`mouse_click`、`mouse_scroll`、`keyboard_*`、`activate_document_app`、`companion_speak`、`companion_task_pending`、`companion_task_complete`、`companion_socket_connect_and_wait` 等。
 
@@ -154,6 +179,7 @@ wait → task_received → companion_task_pending
 |----|------|
 | 平台 | 首期 macOS；Windows Tauri 可构建，输入层待充分测试 |
 | MCP 阻塞 | `auto_wait` 长监听可能导致 MCP HTTP 超时；可设 `timeout_sec` 或 `auto_wait: false` |
+| 画板 overlay | 标注层为普通窗口层级；Companion 置顶；全屏 App 上可能被系统遮挡 |
 | 隐私 | 截屏与键鼠均在本机；Relay 不上传屏幕到 hui-agent 云端 |
 | 模型 | 默认 Cursor 云端模型；可选本地 GGUF 仅用于边缘 outline/ack |
 
@@ -189,5 +215,6 @@ curl -sf http://127.0.0.1:18766/health | python3 -m json.tool
 | 组件 | 版本 |
 |------|------|
 | MCP Server | 0.1.8 |
-| 论文 | v1.0 |
+| Companion 输入增强 | v0.2（工作区 · @ 提及 · 图片 · 画笔） |
+| 论文 | v1.1 |
 | 日期 | 2026-08-01 |

@@ -19,6 +19,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(services.clone())
         .manage(socket_state)
         .setup(move |app| {
@@ -36,6 +37,7 @@ pub fn run() {
                 }
                 let _ = companion.show();
             }
+            let _ = tray::raise_companion_window(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -47,6 +49,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            tray::list_workspace_mention_files,
+            tray::import_companion_image,
+            tray::get_cursor_workspace,
+            tray::set_cursor_workspace,
             tray::get_service_status,
             tray::restart_services,
             tray::export_cursor_config,
@@ -63,6 +69,10 @@ pub fn run() {
             tray::companion_stt_start,
             tray::companion_stt_stop,
             tray::companion_stt_poll,
+            tray::companion_draw_show,
+            tray::companion_draw_hide,
+            tray::companion_draw_clear,
+            tray::companion_raise,
             companion_socket::companion_voice_stt,
             companion_socket::companion_voice_speak_done,
             companion_socket::companion_automation_consent_response,

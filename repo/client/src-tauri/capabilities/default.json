@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default capability for HuiAgent desktop",
-  "windows": ["settings", "companion"],
+  "windows": ["settings", "companion", "draw-overlay"],
     "permissions": [
     "core:default",
     "core:event:default",
@@ -10,6 +10,7 @@
     "core:window:allow-set-position",
     "core:window:allow-set-size",
     "core:tray:default",
-    "shell:default"
+    "shell:default",
+    "dialog:default"
   ]
 }

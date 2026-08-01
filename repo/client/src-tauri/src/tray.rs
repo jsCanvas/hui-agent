@@ -3,7 +3,8 @@ use std::sync::Arc;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
+    WebviewWindow, WebviewWindowBuilder,
 };
 
 use crate::process::ServiceManager;
@@ -148,6 +149,244 @@ fn read_socket_config() -> (String, u16, String) {
     ("127.0.0.1".into(), 18765, String::new())
 }
 
+fn read_config_json() -> serde_json::Value {
+    let path = dirs_config_path();
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_else(|| serde_json::json!({}))
+}
+
+fn write_config_json(mut value: serde_json::Value) -> Result<(), String> {
+    let path = dirs_config_path();
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if value.get("cursor").is_none() {
+        value["cursor"] = serde_json::json!({});
+    }
+    let text = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+fn read_cursor_workspace() -> String {
+    read_config_json()["cursor"]["workspace"]
+        .as_str()
+        .unwrap_or("")
+        .to_string()
+}
+
+#[derive(serde::Serialize)]
+pub struct CursorWorkspaceInfo {
+    pub workspace: String,
+    pub label: String,
+}
+
+#[tauri::command]
+pub fn get_cursor_workspace() -> CursorWorkspaceInfo {
+    let workspace = read_cursor_workspace();
+    CursorWorkspaceInfo {
+        label: workspace_label(&workspace),
+        workspace,
+    }
+}
+
+#[tauri::command]
+pub fn set_cursor_workspace(workspace: String) -> Result<CursorWorkspaceInfo, String> {
+    let workspace = workspace.trim().to_string();
+    let mut cfg = read_config_json();
+    if cfg.get("cursor").is_none() {
+        cfg["cursor"] = serde_json::json!({});
+    }
+    cfg["cursor"]["workspace"] = serde_json::Value::String(workspace.clone());
+    write_config_json(cfg)?;
+    Ok(CursorWorkspaceInfo {
+        label: workspace_label(&workspace),
+        workspace,
+    })
+}
+
+fn workspace_label(path: &str) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return "选择工作区".into();
+    }
+    std::path::Path::new(trimmed)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| trimmed.to_string())
+}
+
+fn uploads_dir() -> Result<std::path::PathBuf, String> {
+    let workspace = read_cursor_workspace();
+    let base = if workspace.trim().is_empty() {
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .map_err(|_| "HOME not set".to_string())?;
+        std::path::PathBuf::from(home).join(".hui-agent/uploads")
+    } else {
+        std::path::PathBuf::from(workspace.trim()).join(".hui-agent/uploads")
+    };
+    std::fs::create_dir_all(&base).map_err(|e| e.to_string())?;
+    Ok(base)
+}
+
+fn is_image_ext(ext: &str) -> bool {
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "heic" | "heif"
+    )
+}
+
+#[derive(serde::Serialize)]
+pub struct ImportedImageInfo {
+    pub path: String,
+    pub name: String,
+}
+
+#[tauri::command]
+pub fn import_companion_image(source_path: String) -> Result<ImportedImageInfo, String> {
+    let source = std::path::Path::new(source_path.trim());
+    if !source.is_file() {
+        return Err("file not found".into());
+    }
+    let ext = source
+        .extension()
+        .and_then(|e| e.to_str())
+        .ok_or_else(|| "unsupported image type".to_string())?;
+    if !is_image_ext(ext) {
+        return Err("unsupported image type".into());
+    }
+
+    let dest_dir = uploads_dir()?;
+    let file_name = format!("{}.{ext}", uuid_simple());
+    let dest = dest_dir.join(&file_name);
+    std::fs::copy(source, &dest).map_err(|e| e.to_string())?;
+
+    let name = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&file_name)
+        .to_string();
+
+    Ok(ImportedImageInfo {
+        path: dest.to_string_lossy().into_owned(),
+        name,
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct WorkspaceMentionFile {
+    pub path: String,
+    pub rel: String,
+}
+
+const SKIP_DIR_NAMES: &[&str] = &[
+    ".git",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".hui-agent",
+    ".cursor",
+];
+
+const MENTION_EXTENSIONS: &[&str] = &[
+    "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "rs", "go", "java", "kt", "swift", "c", "cpp",
+    "h", "hpp", "css", "scss", "html", "md", "json", "yaml", "yml", "toml", "sql", "sh", "txt",
+    "vue", "svelte", "webp", "png", "jpg", "jpeg", "gif",
+];
+
+fn mention_file_allowed(path: &std::path::Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| MENTION_EXTENSIONS.iter().any(|ext| ext.eq_ignore_ascii_case(e)))
+        .unwrap_or(false)
+}
+
+fn mention_dir_skipped(name: &str) -> bool {
+    SKIP_DIR_NAMES.iter().any(|skip| skip.eq_ignore_ascii_case(name))
+}
+
+fn collect_workspace_mention_files(
+    root: &std::path::Path,
+    dir: &std::path::Path,
+    query: &str,
+    out: &mut Vec<WorkspaceMentionFile>,
+    limit: usize,
+    depth: usize,
+) {
+    if out.len() >= limit || depth > 8 {
+        return;
+    }
+    let entries = match std::fs::read_dir(dir) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let mut names: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+    names.sort_by_key(|e| e.file_name());
+    for entry in names {
+        if out.len() >= limit {
+            break;
+        }
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if path.is_dir() {
+            if mention_dir_skipped(&name) {
+                continue;
+            }
+            collect_workspace_mention_files(root, &path, query, out, limit, depth + 1);
+            continue;
+        }
+        if !mention_file_allowed(&path) {
+            continue;
+        }
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if !query.is_empty() {
+            let q = query.to_ascii_lowercase();
+            let rel_l = rel.to_ascii_lowercase();
+            let name_l = name.to_ascii_lowercase();
+            if !rel_l.contains(&q) && !name_l.contains(&q) {
+                continue;
+            }
+        }
+        out.push(WorkspaceMentionFile {
+            path: path.to_string_lossy().into_owned(),
+            rel,
+        });
+    }
+}
+
+#[tauri::command]
+pub fn list_workspace_mention_files(
+    query: String,
+    limit: Option<usize>,
+) -> Result<Vec<WorkspaceMentionFile>, String> {
+    let workspace = read_cursor_workspace();
+    if workspace.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    let root = std::path::PathBuf::from(workspace.trim());
+    if !root.is_dir() {
+        return Err("workspace not found".into());
+    }
+    let max = limit.unwrap_or(20).clamp(1, 50);
+    let mut out = Vec::new();
+    collect_workspace_mention_files(&root, &root, query.trim(), &mut out, max, 0);
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn get_service_status(services: State<'_, Arc<ServiceManager>>) -> ServiceStatus {
     let config_path = dirs_config_path();
@@ -180,15 +419,27 @@ pub fn restart_services(services: State<'_, Arc<ServiceManager>>) -> Result<(), 
 #[tauri::command]
 pub fn export_cursor_config(services: State<'_, Arc<ServiceManager>>) -> Result<String, String> {
     let python = services.python.display().to_string();
+    let workspace = read_cursor_workspace();
+    let mut env = serde_json::Map::new();
+    env.insert(
+        "TTS_PROXY_PORT".into(),
+        serde_json::Value::String(std::env::var("TTS_PROXY_PORT").unwrap_or_else(|_| "8896".into())),
+    );
+    env.insert(
+        "EDGE_TTS_VOICE".into(),
+        serde_json::Value::String(
+            std::env::var("EDGE_TTS_VOICE").unwrap_or_else(|_| "zh-CN-XiaoxiaoNeural".into()),
+        ),
+    );
+    if !workspace.is_empty() {
+        env.insert("HUI_AGENT_WORKSPACE".into(), serde_json::Value::String(workspace));
+    }
     let cfg = serde_json::json!({
         "mcpServers": {
             "hui-agent-desktop": {
                 "command": python,
                 "args": ["-m", "hui_mcp"],
-                "env": {
-                    "TTS_PROXY_PORT": std::env::var("TTS_PROXY_PORT").unwrap_or_else(|_| "8896".into()),
-                    "EDGE_TTS_VOICE": std::env::var("EDGE_TTS_VOICE").unwrap_or_else(|_| "zh-CN-XiaoxiaoNeural".into())
-                }
+                "env": env
             }
         }
     });
@@ -319,12 +570,39 @@ fn parse_agent_result(v: serde_json::Value) -> Result<CompanionChatResult, Strin
 #[tauri::command]
 pub async fn companion_send_message(
     text: String,
+    image_paths: Option<Vec<String>>,
+    file_paths: Option<Vec<String>>,
     services: State<'_, Arc<ServiceManager>>,
     app: AppHandle,
 ) -> Result<CompanionChatResult, String> {
     let _ = services;
     app.emit("companion-task", &text).ok();
-    let v = daemon_post("/agent/chat", serde_json::json!({ "text": text })).await?;
+    let mut body = serde_json::json!({ "text": text });
+    if let Some(paths) = image_paths {
+        let cleaned: Vec<String> = paths
+            .into_iter()
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .collect();
+        if !cleaned.is_empty() {
+            body["image_paths"] = serde_json::Value::Array(
+                cleaned.into_iter().map(serde_json::Value::String).collect(),
+            );
+        }
+    }
+    if let Some(paths) = file_paths {
+        let cleaned: Vec<String> = paths
+            .into_iter()
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .collect();
+        if !cleaned.is_empty() {
+            body["file_paths"] = serde_json::Value::Array(
+                cleaned.into_iter().map(serde_json::Value::String).collect(),
+            );
+        }
+    }
+    let v = daemon_post("/agent/chat", body).await?;
     parse_agent_result(v)
 }
 
@@ -462,4 +740,105 @@ fn uuid_simple() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+fn ensure_draw_overlay(app: &AppHandle) -> Result<WebviewWindow, String> {
+    if let Some(w) = app.get_webview_window("draw-overlay") {
+        let _ = w.set_always_on_top(false);
+        return Ok(w);
+    }
+    let mut builder = WebviewWindowBuilder::new(
+        app,
+        "draw-overlay",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("")
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(false)
+    .skip_taskbar(true)
+    .visible(false)
+    .resizable(false)
+    .focused(false)
+    .accept_first_mouse(true);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.visible_on_all_workspaces(true);
+    }
+
+    let win = builder.build().map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::window::Color;
+        let _ = win.set_background_color(Some(Color(0, 0, 0, 0)));
+    }
+
+    Ok(win)
+}
+
+fn position_draw_overlay(app: &AppHandle, win: &WebviewWindow) -> Result<(), String> {
+    let companion = app
+        .get_webview_window("companion")
+        .ok_or_else(|| "companion window missing".to_string())?;
+    let monitor = companion
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "monitor not found".to_string())?;
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let x = area.position.x as f64 / scale;
+    let y = area.position.y as f64 / scale;
+    let w = area.size.width as f64 / scale;
+    let h = area.size.height as f64 / scale;
+    win.set_size(LogicalSize::new(w, h))
+        .map_err(|e| e.to_string())?;
+    win.set_position(LogicalPosition::new(x, y))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub fn raise_companion_window(app: &AppHandle) -> Result<(), String> {
+    let companion = app
+        .get_webview_window("companion")
+        .ok_or_else(|| "companion window missing".to_string())?;
+    companion
+        .set_always_on_top(true)
+        .map_err(|e| e.to_string())?;
+    companion.show().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn companion_raise(app: AppHandle) -> Result<(), String> {
+    raise_companion_window(&app)
+}
+
+#[tauri::command]
+pub fn companion_draw_show(app: AppHandle) -> Result<(), String> {
+    let win = ensure_draw_overlay(&app)?;
+    position_draw_overlay(&app, &win)?;
+    win.set_ignore_cursor_events(false)
+        .map_err(|e| e.to_string())?;
+    win.show().map_err(|e| e.to_string())?;
+    raise_companion_window(&app)?;
+    win.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn companion_draw_hide(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("draw-overlay") {
+        win.hide().map_err(|e| e.to_string())?;
+    }
+    raise_companion_window(&app)?;
+    let _ = app.emit_to("companion", "companion-draw-exited", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn companion_draw_clear(app: AppHandle) -> Result<(), String> {
+    let _ = app.emit_to("draw-overlay", "companion-draw-clear", ());
+    Ok(())
 }

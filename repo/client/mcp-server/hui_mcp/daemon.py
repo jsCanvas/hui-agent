@@ -281,10 +281,28 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 body = self._read_json_body()
                 text = (body.get("text") or "").strip()
-                if not text:
-                    self._send_json(400, {"ok": False, "error": "text required"})
+                raw_paths = body.get("image_paths")
+                image_paths: list[str] = []
+                if isinstance(raw_paths, list):
+                    image_paths = [str(p).strip() for p in raw_paths if str(p).strip()]
+                legacy = (body.get("image_path") or "").strip()
+                if legacy:
+                    image_paths.append(legacy)
+                raw_files = body.get("file_paths")
+                file_paths: list[str] = []
+                if isinstance(raw_files, list):
+                    file_paths = [str(p).strip() for p in raw_files if str(p).strip()]
+                if not text and not image_paths and not file_paths:
+                    self._send_json(
+                        400,
+                        {"ok": False, "error": "text, image_paths or file_paths required"},
+                    )
                     return
-                result = self.runtime.run(text)
+                result = self.runtime.run(
+                    text,
+                    image_paths=image_paths or None,
+                    file_paths=file_paths or None,
+                )
                 self._send_json(200, result.to_dict())
             except Exception as e:
                 log.exception("agent/chat failed")

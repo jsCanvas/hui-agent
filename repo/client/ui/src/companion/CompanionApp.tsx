@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CompanionStatusOverlay } from "./CompanionStatusOverlay";
 import { CompanionAutomationConsent } from "./CompanionAutomationConsent";
 import { useSpeechRecognition } from "./useSpeechRecognition";
@@ -12,6 +13,12 @@ import { speakWithLipSync, stopCompanionSpeech, proceduralMouthLevel } from "./a
 import { ensureSequenceReady } from "./avatar/avatarSequenceRuntime";
 import { useLipSyncLevel } from "./avatar/useLipSyncLevel";
 import { PushToTalkButton } from "./PushToTalkButton";
+import { CompanionWorkspaceBar } from "./CompanionWorkspaceBar";
+import { CompanionMentionInput } from "./CompanionMentionInput";
+import { parseMentionAttachments } from "./companionMention";
+import type { CompanionUploadedImage } from "./companionImage";
+import { useCompanionWorkspace } from "./useCompanionWorkspace";
+import { useCompanionDrawTools } from "./useCompanionDrawTools";
 import { useCompanionWindow, syncCompanionWindowSize } from "./useCompanionWindow";
 import { useCompanionExpanded } from "./useCompanionExpanded";
 import { useCompanionRelayWatch } from "./useCompanionRelayWatch";
@@ -72,12 +79,16 @@ export function CompanionApp() {
   const [callError, setCallError] = useState("");
   const [consentOpen, setConsentOpen] = useState(false);
   const [consentMessage, setConsentMessage] = useState("");
+  const [pendingImages, setPendingImages] = useState<CompanionUploadedImage[]>([]);
   const consentRequestRef = useRef<string | null>(null);
   const processingRef = useRef(false);
   const completedTimerRef = useRef<number | null>(null);
   const activeUtteranceRef = useRef<string | null>(null);
   const { mouthOpen, setLevelFromAudio } = useLipSyncLevel(speaking);
   const { dragHandleProps } = useCompanionWindow();
+  const workspaceState = useCompanionWorkspace();
+  const { workspace } = workspaceState;
+  const drawTools = useCompanionDrawTools();
   const { expanded, toggleExpanded, exitApp, avatarMaxWidth, expandedAvatarMaxWidth } = useCompanionExpanded();
 
   const isPtt = voiceInputMode === "push_to_talk";
@@ -133,6 +144,22 @@ export function CompanionApp() {
       clearCompletedTimer();
     };
   }, [clearCompletedTimer]);
+
+  useEffect(() => {
+    if (!isTauriApp()) return;
+    void invoke("companion_raise");
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (focused) void invoke("companion_raise");
+      })
+      .then((fn) => {
+        unlisten = fn;
+      });
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   const speakReplyBackend = useCallback(
     async (text: string, sequence: SpeechSequenceKey = "speaking") => {
@@ -318,23 +345,34 @@ export function CompanionApp() {
   );
 
   const runAgentTask = useCallback(
-    async (text: string, opts?: { speak?: boolean }) => {
+    async (
+      text: string,
+      opts?: { speak?: boolean; imagePaths?: string[]; filePaths?: string[] },
+    ) => {
       if (opts?.speak && calling) {
         await submitVoiceUtterance(text);
         return;
       }
       const trimmed = text.trim();
-      if (!trimmed || processingRef.current) return;
+      const imagePaths = (opts?.imagePaths ?? []).filter((p) => p.trim());
+      const filePaths = (opts?.filePaths ?? []).filter((p) => p.trim());
+      if ((!trimmed && !imagePaths.length && !filePaths.length) || processingRef.current) return;
       processingRef.current = true;
       clearCompletedTimer();
-      setTaskHint(trimmed);
+      const hintParts: string[] = [];
+      if (trimmed) hintParts.push(trimmed);
+      if (filePaths.length) hintParts.push(`${filePaths.length} 个文件`);
+      if (imagePaths.length) hintParts.push(`${imagePaths.length} 张图片`);
+      setTaskHint(hintParts.join(" · ") || "发送任务");
       setLifecycle("waiting");
       setPttHolding(false);
       try {
         await new Promise((r) => window.setTimeout(r, 150));
         setLifecycle("executing");
         const result = await invoke<CompanionChatResult>("companion_send_message", {
-          text: trimmed,
+          text: trimmed || "请分析附件并协助 vibe coding",
+          imagePaths,
+          filePaths,
         });
         finishTask(result.ok);
       } catch {
@@ -406,14 +444,16 @@ export function CompanionApp() {
 
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || busy) return;
+    const { filePaths, imagePaths } = parseMentionAttachments(input, workspace, pendingImages);
+    if ((!text && !imagePaths.length && !filePaths.length) || busy) return;
     setInput("");
+    setPendingImages([]);
     if (calling) {
-      await submitVoiceUtterance(text);
+      await submitVoiceUtterance(text || "请分析附件并协助 vibe coding");
       return;
     }
-    await runAgentTask(text);
-  }, [input, busy, calling, runAgentTask, submitVoiceUtterance]);
+    await runAgentTask(text, { filePaths, imagePaths });
+  }, [input, workspace, pendingImages, busy, calling, runAgentTask, submitVoiceUtterance]);
 
   const setInputMode = (mode: VoiceInputMode) => {
     setVoiceInputMode(mode);
@@ -549,6 +589,13 @@ export function CompanionApp() {
           </div>
         ) : null}
 
+        <CompanionWorkspaceBar
+          images={pendingImages}
+          onImagesChange={setPendingImages}
+          workspaceState={workspaceState}
+          drawTools={drawTools}
+        />
+
         <div className="input-bar">
         <button
           type="button"
@@ -559,12 +606,14 @@ export function CompanionApp() {
         >
           {calling ? "✕" : "☎"}
         </button>
-        <input
+        <CompanionMentionInput
           value={input}
+          onChange={setInput}
+          onSubmit={() => void send()}
           disabled={busy}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
-          placeholder={calling ? "打字发送…" : "完整阅读第四节并总结…"}
+          workspace={workspace}
+          images={pendingImages}
+          placeholder={calling ? "打字发送，输入 @ 引用文件…" : "输入 @ 引用文件或图片，协助 vibe coding…"}
         />
         <button
           type="button"
