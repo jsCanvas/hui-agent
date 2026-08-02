@@ -4,4 +4,5 @@ ui/dist/
 mcp-server/.venv/
 mcp-server/.pytest_cache/
 src-tauri/target/
+bundle-resources/
 .DS_Store
