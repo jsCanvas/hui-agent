@@ -57,6 +57,11 @@ body.draw-overlay-root #root {
   --c-text-muted: rgba(255, 255, 255, 0.45);
   --c-bar: rgba(8, 10, 16, 0.5);
   --c-bar-border: rgba(255, 255, 255, 0.1);
+  --c-chrome-bg: rgba(8, 10, 16, 0.58);
+  --c-chrome-border: rgba(255, 255, 255, 0.12);
+  --c-chrome-color: rgba(255, 255, 255, 0.72);
+  --c-chrome-hover-bg: rgba(255, 255, 255, 0.12);
+  --c-chrome-hover-color: rgba(255, 255, 255, 0.95);
 
   display: flex;
   flex-direction: column;
@@ -111,8 +116,8 @@ body.draw-overlay-root #root {
   max-width: 132px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(8, 10, 16, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--c-chrome-bg);
+  border: 1px solid var(--c-chrome-border);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
@@ -126,9 +131,9 @@ body.draw-overlay-root #root {
   padding: 0;
   border: none;
   border-radius: 6px;
-  background: rgba(8, 10, 16, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.72);
+  background: var(--c-chrome-bg);
+  border: 1px solid var(--c-chrome-border);
+  color: var(--c-chrome-color);
   cursor: pointer;
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
@@ -146,8 +151,8 @@ body.draw-overlay-root #root {
 }
 
 .companion-chrome-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.95);
+  background: var(--c-chrome-hover-bg);
+  color: var(--c-chrome-hover-color);
 }
 
 .companion-chrome-btn-close:hover {
@@ -628,18 +633,21 @@ body.draw-overlay-root #root {
   align-items: center;
   gap: 4px;
   padding: 5px 6px;
-  border-radius: 9px;
-  border: 1px solid var(--c-bar-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--c-text);
+  border-radius: 6px;
+  border: 1px solid var(--c-chrome-border);
+  background: var(--c-chrome-bg);
+  color: var(--c-chrome-color);
   font-size: 10px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .workspace-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(110, 231, 183, 0.35);
+  background: var(--c-chrome-hover-bg);
+  color: var(--c-chrome-hover-color);
+  border-color: var(--c-chrome-border);
 }
 
 .workspace-btn:disabled {
@@ -666,13 +674,17 @@ body.draw-overlay-root #root {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
-  border-radius: 7px;
-  border: 1px solid var(--c-bar-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--c-text-muted);
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--c-chrome-border);
+  background: var(--c-chrome-bg);
+  color: var(--c-chrome-color);
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .workspace-tools {
@@ -684,33 +696,36 @@ body.draw-overlay-root #root {
 
 .workspace-tool-btn {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--c-bar-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--c-text);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--c-chrome-border);
+  background: var(--c-chrome-bg);
+  color: var(--c-chrome-color);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .workspace-tool-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(249, 115, 22, 0.45);
+  background: var(--c-chrome-hover-bg);
+  color: var(--c-chrome-hover-color);
 }
 
 .workspace-tool-btn.active {
   border-color: rgba(249, 115, 22, 0.65);
-  background: rgba(249, 115, 22, 0.16);
+  background: rgba(249, 115, 22, 0.22);
   color: #fdba74;
 }
 
 .workspace-clear:hover {
-  color: var(--c-text);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--c-chrome-hover-bg);
+  color: var(--c-chrome-hover-color);
 }
 
 .workspace-image-wrap {
@@ -806,27 +821,31 @@ body.draw-overlay-root #root {
 .workspace-image-btn {
   position: relative;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--c-bar-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--c-text);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--c-chrome-border);
+  background: var(--c-chrome-bg);
+  color: var(--c-chrome-color);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .workspace-image-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(129, 140, 248, 0.4);
+  background: var(--c-chrome-hover-bg);
+  color: var(--c-chrome-hover-color);
 }
 
 .workspace-image-btn.active {
-  border-color: rgba(129, 140, 248, 0.55);
-  background: rgba(129, 140, 248, 0.12);
+  border-color: rgba(129, 140, 248, 0.65);
+  background: rgba(129, 140, 248, 0.22);
+  color: #c7d2fe;
 }
 
 .workspace-image-btn:disabled {
